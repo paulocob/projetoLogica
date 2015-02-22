@@ -1,10 +1,12 @@
 module clinica/Clinica
 
+open clinica/Cidade
+open clinica/Servico
+
 sig Clinica {
 	localizacao: Cidade,
-	servicos: set Servicos
+	servicos: set Servico
 }
-
 
 pred temServico[cli: Clinica, servico: Servico] {
 	servico in cli
