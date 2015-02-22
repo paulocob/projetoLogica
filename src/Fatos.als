@@ -13,4 +13,4 @@ fact TiposServicos {
 		let ser = cli.servicos | o in ser and p in ser and f in ser
 }
 
-
+fact LocalizacaoClinicas {} // A definir
