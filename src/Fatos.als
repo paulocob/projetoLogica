@@ -1,6 +1,6 @@
 module clinica/Fatos
 
-open Clinica as cl
+open clinica/Clinica
 
 fact NumServicosClinica {
 	// Cada clínica oferece três serviços.
@@ -14,3 +14,5 @@ fact TiposServicos {
 }
 
 fact LocalizacaoClinicas {} // A definir
+
+
