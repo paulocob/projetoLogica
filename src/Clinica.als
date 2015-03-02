@@ -7,7 +7,7 @@ sig Clinica {
 	localizacao: Cidade,
 	servicos: set Servico
 }
-
+// dá erro na hora de executar
 pred temServico[cli: Clinica, servico: Servico] {
 	servico in cli
 }
