@@ -1,13 +1,10 @@
 module clinica
 
-----assinatura---
+----assinaturas---
 
 sig Clinica {
 	localizacao: Cidade,
 	servicos: set Servico
-}
-sig matriz {
-	
 }
 
 sig Servico {
@@ -20,7 +17,7 @@ sig Cidade { clinicas: set Clinica }
 one sig CampinaGrande, JoaoPessoa, Patos, SantaRita extends Cidade {}
 
 
----predicado---
+---predicados---
 // não tá rodando esse predicado
 /*pred temServico[cli: Clinica, servico: Servico] {
 	servico in cli
