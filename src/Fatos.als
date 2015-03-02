@@ -16,5 +16,5 @@ fact TiposServicos {
 fact LocalizacaoClinicas {} // A definir
 
 
-fact show[]{}
+pred show[]{}
 run show for 5
