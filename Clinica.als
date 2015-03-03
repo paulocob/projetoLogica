@@ -47,12 +47,6 @@ fact CadaServicoEstaParaUmaClinica{
 	
 }
 
-fact CadaMedicoEstaParaUmServico{
-	// Os servicos de Odontologia, Psicologia e Fisioterapia estao presentes em toda clinica
-	#Medico = 12
-
-}
-
 
 fact TiposServicos {
 	// Os servicos de Odontologia, Psicologia e Fisioterapia estao presentes em toda clinica
@@ -60,14 +54,33 @@ fact TiposServicos {
 	let ser = fil.servicos | o in ser and p in ser and f in ser
 }
 
+
 fact TodaFilialPertenceAClinica {
 	//Toda filial esta ligada a sua matriz
 	all fil: Filial | some fil.~localizacao
 //	all fli: Filial | #(fli.odo)
 }
 
+
+fact TodoServicoTemApenasUmMedico{
+	all ser: Servico | one ser.medico
+} 
+
+
+fact TodoMedicoTrabalhaEmAlgumServico {
+	//todo medico faz parte do grupo de medicos de algum serviço da clinica
+	all med: Medico | some med.~medico
+}
+
+fact CadaMedicoEstaParaUmServico {
+	//Todo medico faz parte de um serviço e se um medico está em um serviço ele não pode estar em outro simultaneo
+	all med: Medico , ser: Servico | (med in ser.medico => (all ser2: Servico  - ser | med !in ser2.medico))
+
+} 
+
+
 fact LocalizacaoClinicas {} // A definir
 
 
 pred show[]{}
-run show for 20
+run show for 30
