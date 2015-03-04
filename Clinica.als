@@ -11,18 +11,32 @@ abstract sig Filial {
 }
 
 abstract sig Servico {
-	medico: some Medico
+	medico: some Medico,
+	ajudante: set Ajudante
 }
 
 sig Odontologia, Psicologia, Fisioterapia extends Servico {}
 
 sig Medico{
-	ajudante: set Ajudante
+	pacientes: set Paciente
 }
 
 one sig CampinaGrande, JoaoPessoa, Patos, SantaRita extends Filial {}
 
 sig Ajudante{}
+
+sig Paciente{}
+
+----------------------------------- FUNCOES --------------------------------
+
+fun ajudantesDeFisioterapia[ser : Servico]: set Ajudante{
+	ser.ajudante		
+}
+
+fun getPacientes[med: Medico]: set Paciente{
+	med.pacientes
+}
+
 
 --- predicado ---
 
@@ -46,14 +60,23 @@ pred TodoServicoTemApenasUmMedico{
 	all ser: Servico | one ser.medico
 } 
 
+pred TodoAjudanteEstaParaUmServico{
+	all ajud: Ajudante | some ajud.~ajudante
+
+}
 
 pred TodoMedicoTrabalhaEmAlgumServico {
 	//todo medico faz parte do grupo de medicos de algum serviço da clinica
 	all med: Medico | some med.~medico
 }
 
-pred TodoAjudanteEstaParaUmMedico {
-	all ajud: Ajudante | some ajud.~ajudante
+
+pred TodoMedicoTemUmOuMaisPacientes{
+	all med :Medico | some p :Paciente | p in med.pacientes
+}
+
+pred TodoPacienteEstaParaUmMedico{
+	all pac: Paciente | some pac.~pacientes
 
 }
 
@@ -65,13 +88,15 @@ fact EstruturaDaClinica {
 	TodaFilialTem3Servicos 
 	TodoServicoPertenceAUmaFilial
 	TodoMedicoTrabalhaEmAlgumServico
-	TodoAjudanteEstaParaUmMedico
+	TodoAjudanteEstaParaUmServico
+	TodoPacienteEstaParaUmMedico
 
 }
 
 fact Quatidades{
 	#Clinica = 1
 	#Filial = 4
+	#Medico.pacientes >=  && 	#Medico.pacientes <= 5
 	//#Servico = 12 alternativa  predicado -> TodoServicoPertenceAUmaFilial
 }
 
@@ -91,20 +116,28 @@ fact CadaMedicoEstaParaUmServico {
 
 fact QuantidadeAjudantesPorEspecialidade{
 	// Odontologia = 1
-	all o: Odontologia | one o.medico.ajudante
+	all o: Odontologia | one o.ajudante
 	//Psicologia = 0
-	all p: Psicologia | no p.medico.ajudante
+	all p: Psicologia | no p.ajudante
 	// Fisioterapia = 1 a 3
-	all f: Fisioterapia | ((one f.medico.ajudante) or	(#f.medico.ajudante = 2) or (#f.medico.ajudante = 3 ))
+	all f: Fisioterapia | #ajudantesDeFisioterapia[f] >= 1 && #ajudantesDeFisioterapia[f] <= 3
 }
 
 fact CadaAjudanteEstaParaUmServico {
 	//Todo ajudande faz parte de um serviço e se um ajudante está em um serviço ele não pode estar em outro simultaneo
-	all ajud: Ajudante , ser: Servico | (ajud in ser.medico.ajudante => (all ser2: Servico  - ser | ajud !in ser2.medico.ajudante))
+	all ajud: Ajudante , ser: Servico | (ajud in ser.ajudante => (all ser2: Servico  - ser | ajud !in ser2.ajudante))
+}
+
+fact CadaPacienteEstaParaUmMedico {
+	all pac: Paciente , med: Medico | (pac in med.pacientes => (all med2: Medico  - med | pac !in med2.pacientes))
 }
 
 
 
+------------------------------------ASSERTS------------------------------------
+
+
 
 pred show[]{}
-run show for 20
+run show for 30
+
