@@ -96,7 +96,7 @@ fact EstruturaDaClinica {
 fact Quatidades{
 	#Clinica = 1
 	#Filial = 4
-	#Medico.pacientes >=  && 	#Medico.pacientes <= 5
+	#Medico.pacientes >= 1  && 	#Medico.pacientes <= 5
 	//#Servico = 12 alternativa  predicado -> TodoServicoPertenceAUmaFilial
 }
 
@@ -135,9 +135,40 @@ fact CadaPacienteEstaParaUmMedico {
 
 
 ------------------------------------ASSERTS------------------------------------
+assert todoServicoTemApenasUmMedico{
+	all m:Medico | m in Servico.medico
+}
+
+assert todaFilialPertenceAClinica{
+	all f:Filial | f in Clinica.localizacao
+}
+
+assert todoServicoFisioterapiaTemApenasUmAjudante{
+	all f: Fisioterapia | #ajudantesDeFisioterapia[f] >= 1 && #ajudantesDeFisioterapia[f] <= 3
+}
+
+assert todoPacienteEstaAlocadoParaUmMedico{
+	all p: Paciente | p in Medico.pacientes
+}
+
+assert todoServicoOdontologiaTemApenasUmAjudante{
+	all o: Odontologia | #o.ajudante = 1
+}
+
+assert  todoServicoPsicologiaNaoPossuiAjudante{
+	all p: Psicologia | #p.ajudante = 0
+}
+
+check todoServicoTemApenasUmMedico for 15
+check  todaFilialPertenceAClinica for 15
+check todoServicoFisioterapiaTemApenasUmAjudante for 15
+check todoPacienteEstaAlocadoParaUmMedico for 15
+check  todoServicoOdontologiaTemApenasUmAjudante for 15
+check todoServicoPsicologiaNaoPossuiAjudante for 15
+
+
 
 
 
 pred show[]{}
-run show for 30
-
+run show for 15
