@@ -21,7 +21,7 @@ abstract sig Servico {
 sig Odontologia, Psicologia, Fisioterapia extends Servico {}
 
 sig Medico{
-	pacientes: set Paciente
+	pacientes: set Paciente -> Time
 }
 
 one sig CampinaGrande, JoaoPessoa /*Patos, SantaRita */extends Filial {}
@@ -29,7 +29,7 @@ one sig CampinaGrande, JoaoPessoa /*Patos, SantaRita */extends Filial {}
 sig Ajudante{}
 
 sig Paciente{
-	status: one StatusPaciente
+//	status: one StatusPaciente
 }
 
 abstract sig StatusPaciente {}
@@ -46,8 +46,8 @@ fun ajudantesDeFisioterapia[ser : Servico]: set Ajudante{
 	ser.ajudante		
 }
 
-fun getPacientes[med: Medico]: set Paciente{
-	med.pacientes
+fun getPacientes[med: Medico, t: Time]: set Paciente{
+	med.pacientes.t
 }
 
 
@@ -85,27 +85,28 @@ pred TodoMedicoTrabalhaEmAlgumServico {
 }
 
 
-pred TodoMedicoTemUmOuMaisPacientes{
-	all med :Medico | some p :Paciente | p in med.pacientes
-}
+/*pred TodoMedicoTemUmOuMaisPacientes{
+	all med :Medico, t: Time | some p :Paciente | p in med.pacientes.t
+} */
 
 
 
 pred TodoPacienteEstaParaUmMedico{
-	all pac: Paciente | some pac.~pacientes
+	all pac: Paciente, t: Time | some pac.~(pacientes.t)
 
 }
-
+/*
 pred TodoPacienteTemStatus{
-	all pac : Paciente | some pac.~pacientes
+	all pac : Paciente | some pac.status
 }
 
 pred TodoStatusEstaLigadoAUmPaciente{
 	all stat: StatusPaciente | some stat.~status
 	all stat: StatusPaciente , pac: Paciente | (stat in pac.status => (all pac2: Paciente  - pac | stat !in pac2.status))
 }
-
+*/
 ---- Fatos ------
+
 
 fact EstruturaDaClinica {
 	TodoServicoTemApenasUmMedico
@@ -115,14 +116,14 @@ fact EstruturaDaClinica {
 	TodoMedicoTrabalhaEmAlgumServico
 	TodoAjudanteEstaParaUmServico
 	TodoPacienteEstaParaUmMedico
-	TodoStatusEstaLigadoAUmPaciente
+//	TodoStatusEstaLigadoAUmPaciente
 
 }
 
 fact Quatidades{
 	#Clinica = 1
 	#Filial = 2
-	all med: Medico | #(getPacientes[med]) >=1 and #(getPacientes[med]) <= 5
+	all med: Medico, t: Time | #(getPacientes[med, t]) <= 5
 	//#Medico.pacientes >= 1  and 	#Medico.pacientes <= 5
 	//#Servico = 12 alternativa  predicado -> TodoServicoPertenceAUmaFilial
 }
@@ -156,7 +157,7 @@ fact CadaAjudanteEstaParaUmServico {
 }
 
 fact CadaPacienteEstaParaUmMedico {
-	all pac: Paciente , med: Medico | (pac in getPacientes[med] => (all med2: Medico  - med | pac !in getPacientes[med2]))
+	all pac: Paciente , med: Medico, t: Time | (pac in getPacientes[med, t] => (all med2: Medico  - med | pac !in getPacientes[med2, t]))
 }
 
 
@@ -175,7 +176,7 @@ assert todoServicoFisioterapiaTemApenasUmAjudante{
 }
 
 assert todoPacienteEstaAlocadoParaUmMedico{
-	all p: Paciente | p in Medico.pacientes
+	all p: Paciente, t: Time | p in Medico.pacientes.t
 }
 
 assert todoServicoOdontologiaTemApenasUmAjudante{
@@ -186,6 +187,24 @@ assert  todoServicoPsicologiaNaoPossuiAjudante{
 	all p: Psicologia | #p.ajudante = 0
 }
 
+pred addPaciente[m: Medico, p: Paciente,t, t': Time] {
+	p !in (m.pacientes).t
+	(m.pacientes).t' = (m.pacientes).t + p 
+}
+
+---- operacoes que simulam o comportamento
+
+fact traces {
+	init[first]
+	all pre: Time-last | let pos = pre.next |
+	some med: Medico, paciente: Paciente |
+	addPaciente[med, paciente, pre, pos]
+}
+
+pred init[t: Time] {
+	some Medico.pacientes.t
+}
+-------
 /*check todoServicoTemApenasUmMedico for 15
 check  todaFilialPertenceAClinica for 15
 check todoServicoFisioterapiaTemApenasUmAjudante for 15
@@ -198,4 +217,4 @@ check todoServicoPsicologiaNaoPossuiAjudante for 15*/
 
 
 pred show[]{}
-run show for 25
+run show for 10
