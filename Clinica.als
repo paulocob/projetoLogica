@@ -1,6 +1,6 @@
 module clinica
 
-open util/ordering[Time]
+open util/ordering[Time] as to 
 
 ----assinaturas---
 sig Time {}
@@ -14,135 +14,54 @@ abstract sig Filial {
 }
 
 abstract sig Servico {
-	medico: some Medico,
+	profissional: some Profissional,
 	ajudante: set Ajudante
 }
 
 sig Odontologia, Psicologia, Fisioterapia extends Servico {}
 
-sig Medico{
-	pacientes: set Paciente -> Time
+sig Profissional{
+	pacienteEmAtendimento:  set Paciente -> Time,
+	pacientesNaoAtendidos:  set Paciente -> Time,
+	pacientesAtendidos: set  Paciente -> Time
 }
 
-one sig CampinaGrande, JoaoPessoa /*Patos, SantaRita */extends Filial {}
+one sig CampinaGrande/*, JoaoPessoa, Patos, SantaRita */extends Filial {}
 
 sig Ajudante{}
 
 sig Paciente{
-	status:  StatusPaciente one -> Time
+	//status:  StatusPaciente one -> Time
 }
-
+/*
 abstract sig StatusPaciente {}
 
 sig Consultado, EmConsulta, NaoConsultado extends StatusPaciente {}
 
-
+*/
 	
 
 
------------------------------------ FUNCOES --------------------------------
+----------------------------------- FATOS --------------------------------
 
-fun ajudantesDeFisioterapia[ser : Servico]: set Ajudante{
-	ser.ajudante		
-}
-
-fun getPacientes[med: Medico, t: Time]: set Paciente{
-	med.(pacientes.t)
-}
-
-
-
---- predicado ---
-//acho que isso fica no traces (Init)
-pred TodaFilialPertenceAClinica {
+fact filial{
 	//Toda filial esta ligada a sua matriz
 	all fil: Filial | some fil.~localizacao
-}
-//acho que isso fica no traces (Init)
-pred TodaFilialTem3Servicos {
 	// Os servicos de Odontologia, Psicologia e Fisioterapia estao presentes em toda clinica
 	all fil: Filial | one o: Odontologia | one p: Psicologia | one f: Fisioterapia |
 	let ser = fil.servicos | o in ser and p in ser and f in ser
 }
 
-
-pred TodoServicoPertenceAUmaFilial {
-	all s: Servico | some s.~servicos
-}
-
-pred TodoServicoTemApenasUmMedico{
-	all ser: Servico | one ser.medico
-} 
-
-pred TodoAjudanteEstaParaUmServico{
-	all ajud: Ajudante | some ajud.~ajudante
-
-}
-
-pred TodoMedicoTrabalhaEmAlgumServico {
-	//todo medico faz parte do grupo de medicos de algum serviço da clinica
-	all med: Medico | some med.~medico
-}
-
-
-/*pred TodoMedicoTemUmOuMaisPacientes{
-	all med :Medico, t: Time | some p :Paciente | p in med.pacientes.t
-} */
-
-
-
-pred TodoPacienteEstaParaUmMedico{
-	all pac: Paciente, t: Time | some pac.~(pacientes.t)
-
-}
-
-pred TodoPacienteTemStatus{
-	all pac : Paciente | some pac.status
-}
-
-pred TodoStatusEstaLigadoAUmPaciente{
-	all stat: StatusPaciente, t: Time | some stat.~(status.t)
-	all stat: StatusPaciente , pac: Paciente, t: Time | (stat in pac.status.t => (all pac2: Paciente  - pac | stat !in pac2.status.t))
-}
-
----- Fatos ------
-
-
-fact EstruturaDaClinica {
-	TodoServicoTemApenasUmMedico
-	TodaFilialPertenceAClinica
-	TodaFilialTem3Servicos 
-	TodoServicoPertenceAUmaFilial
-	TodoMedicoTrabalhaEmAlgumServico
-	TodoAjudanteEstaParaUmServico
-	TodoPacienteEstaParaUmMedico
-	TodoStatusEstaLigadoAUmPaciente
-
-}
-
-fact Quantidades{
-	#Clinica = 1
-	#Filial = 2
-	all med: Medico, t: Time | #(getPacientes[med, t]) <= 5
-	//#Medico.pacientes >= 1  and 	#Medico.pacientes <= 5
-	//#Servico = 12 alternativa  predicado -> TodoServicoPertenceAUmaFilial
-}
-
-
-
-fact CadaServicoEstaParaUmaClinica{
-	// Os servicos de Odontologia, Psicologia e Fisioterapia estao presentes em toda clinica e não pode estar simultaneamente em outra clinica
+fact servico {
+	// Todo serviço pertence a uma filial
+	all s: Servico | some s.~servicos 
+	// Todo serviço tem apenas um medico
+	all s: Servico | one s.profissional
+	// Os servicos de Odontologia, Psicologia e Fisioterapia não podem estar simultaneamente em outra clinica
 	all o: Odontologia, fil: Filial | (o in fil.servicos => (all fil2: Filial - fil | o !in fil2.servicos))
 	all p: Psicologia, fil: Filial | (p in fil.servicos => (all fil2: Filial - fil | p !in fil2.servicos))
 	all f: Fisioterapia, fil: Filial | (f in fil.servicos => (all fil2: Filial - fil | f !in fil2.servicos))	
-}
-
-fact CadaMedicoEstaParaUmServico {
-	//Todo medico faz parte de um serviço e se um medico está em um serviço ele não pode estar em outro simultaneo
-	all med: Medico , ser: Servico | (med in ser.medico => (all ser2: Servico  - ser | med !in ser2.medico))
-} 
-//acho que isso fica no traces (Init)
-fact QuantidadeAjudantesPorEspecialidade{
+	-------- Quantidades de ajudante em cada serviço ----------
 	// Odontologia = 1
 	all o: Odontologia | one o.ajudante
 	//Psicologia = 0
@@ -151,20 +70,107 @@ fact QuantidadeAjudantesPorEspecialidade{
 	all f: Fisioterapia | #ajudantesDeFisioterapia[f] >= 1 && #ajudantesDeFisioterapia[f] <= 3
 }
 
-fact CadaAjudanteEstaParaUmServico {
-	//Todo ajudande faz parte de um serviço e se um ajudante está em um serviço ele não pode estar em outro simultaneo
-	all ajud: Ajudante , ser: Servico | (ajud in ser.ajudante => (all ser2: Servico  - ser | ajud !in ser2.ajudante))
+fact ajudante {
+	 // Todo ajudante esta em um servico
+	all ajud: Ajudante | some ajud.~ajudante 
+	//Todo ajudande não pode estar em outro serviço simultaneamente
+	all ajud: Ajudante, ser: Servico | (ajud in ser.ajudante => (all ser2: Servico  - ser | ajud !in ser2.ajudante))
 }
 
-fact CadaPacienteEstaParaUmMedico {
-	all pac: Paciente , med: Medico, t: Time | (pac in getPacientes[med, t] => (all med2: Medico  - med | pac !in getPacientes[med2, t]))
+fact profissional {	
+	//todo medico faz parte do grupo de medicos de algum serviço da clinica
+	all prof: Profissional | some prof.~profissional
+	// Todo medico atende até 5 pacientes
+	all prof: Profissional, t: Time | #(getPacientes[prof, t]) <= 5
+	//Todo medico  não pode estar em outro serviço simultaneamente
+	all prof: Profissional , ser: Servico | (prof in ser.profissional => (all ser2: Servico  - ser | prof !in ser2.profissional))
 }
 
 
+fact paciente {
+	// Todo paciente esta ligado a um medico
+	all p: Paciente, t: Time | some prof: Profissional | p in (prof.pacientesAtendidos.t +prof.pacienteEmAtendimento.t + prof.pacientesNaoAtendidos.t)
+	// Todo paciente nao pode estar em outro medico simultaneamente
+	all pac: Paciente , prof: Profissional, t: Time | (pac in getPacientes[prof, t] => (all prof2: Profissional  - prof | pac !in getPacientes[prof2, t]))
+}
 
-------------------------------------ASSERTS------------------------------------
+fact sistema {
+	#Clinica= 1
+	restricao 
+}
+
+----------------------------------- PREDICADOS --------------------------------
+
+pred restricao {
+		//Todo medico tem apenas um paciente em atendimento
+	all t: Time, prof: Profissional | #prof.pacienteEmAtendimento.t <=1
+	// o paciente que está em Não Atendido não pode estar Em Atendimento e Atendido
+	all p: Paciente, t: Time,prof: Profissional | (p in prof.pacientesNaoAtendidos.t ) => 
+	((p not in prof.pacienteEmAtendimento.t) and (p not in prof.(pacientesAtendidos.t)))
+
+	// o paciente que está Em Atendido não pode estar Não Atendido e Atendido
+	all p: Paciente, t: Time,prof: Profissional | (p in prof.pacienteEmAtendimento.t ) => 
+	((p not in prof.pacientesNaoAtendidos.t) and (p not in prof.pacientesAtendidos.t))
+
+	// o paciente que está em Atendido não pode estar Não Atendido e Em Atendido
+	all p: Paciente, t: Time,prof: Profissional | (p in prof.pacientesAtendidos.t ) => 
+	((p not in prof.pacientesNaoAtendidos.t) and (p not in prof.pacienteEmAtendimento.t))
+}
+
+
+----------------------------------- FUNCOES --------------------------------
+fun ajudantesDeFisioterapia[ser : Servico]: set Ajudante{
+	ser.ajudante		
+}
+
+fun getPacientes[prof: Profissional, t: Time]: set Paciente{
+	prof.pacienteEmAtendimento.t + prof.pacientesNaoAtendidos.t + prof.pacientesAtendidos.t
+}
+
+fun getPacienteEmAtendimento[prof: Profissional, t: Time]: set Paciente{
+	prof.pacienteEmAtendimento.t 
+}
+
+----------------------------------- OPERAÇÕES TEMPORAIS --------------------------------
+
+fact traces {
+	init[first]
+	all pre: Time-last | let pos = pre.next |
+	some prof : Profissional, paciente: Paciente |
+	addPaciente[prof, paciente, pre, pos] or
+	atenderPaciente[prof, paciente, pre, pos] or
+	terminarAtendimento[prof, paciente, pre, pos]
+
+}
+
+pred init[t: Time] {}
+
+pred addPaciente[prof: Profissional, p: Paciente,t, t': Time] {
+	//verifica se o paciente já não está no profissional
+	p !in (prof.pacientesNaoAtendidos).t and (p !in (prof.pacienteEmAtendimento).t) and 
+	(p !in (prof.pacientesAtendidos).t)
+	(prof.pacientesNaoAtendidos).t' = (prof.pacientesNaoAtendidos).t + p 
+	 #getPacientes[prof,t] = #(getPacientes[prof,t'] - p)
+}
+
+pred terminarAtendimento[prof: Profissional, p: Paciente,t, t': Time]{
+	p in prof.pacienteEmAtendimento.t
+	prof.pacientesAtendidos.t' = prof.pacientesAtendidos.t + p
+	prof.pacienteEmAtendimento.t' = prof.pacientesAtendidos.t - p
+	 #getPacientes[prof,t] = #(getPacientes[prof,t'])
+}
+
+pred atenderPaciente[prof: Profissional, p: Paciente,t, t': Time]{	
+	p in prof.pacientesNaoAtendidos.t and (p !in prof.pacientesAtendidos.t) and
+	(getPacienteEmAtendimento[prof,t] in prof.pacientesAtendidos.t)
+	prof.pacientesNaoAtendidos.t' = prof.pacientesNaoAtendidos.t + p	
+	 #getPacientes[prof,t] = #(getPacientes[prof,t'])
+}
+
+
+------------------------------------ ASSERTS ------------------------------------
 assert todoServicoTemApenasUmMedico{
-	all m:Medico | m in Servico.medico
+	all prof:Profissional | prof in Servico.profissional
 }
 
 assert todaFilialPertenceAClinica{
@@ -176,8 +182,9 @@ assert todoServicoFisioterapiaTemApenasUmAjudante{
 }
 
 assert todoPacienteEstaAlocadoParaUmMedico{
-	all p: Paciente, t: Time | p in Medico.pacientes.t
+	all p: Paciente, t: Time | p in getPacientes[Profissional,t]
 }
+
 
 assert todoServicoOdontologiaTemApenasUmAjudante{
 	all o: Odontologia | #o.ajudante = 1
@@ -187,44 +194,13 @@ assert  todoServicoPsicologiaNaoPossuiAjudante{
 	all p: Psicologia | #p.ajudante = 0
 }
 
-pred addPaciente[m: Medico, p: Paciente,t, t': Time] {
-	p !in (m.pacientes).t
-	(m.pacientes).t' = (m.pacientes).t + p 
-}
 
-pred remPaciente[m: Medico, p: Paciente,t, t': Time] {
-	p in (m.pacientes).t
-	(m.pacientes).t' = (m.pacientes).t - p 
-}
 
-pred mudaStatus[p: Paciente, t, t': Time] {
-	// let s = o,status.t
-} 
----- operacoes que simulam o comportamento
 
-fact traces {
-	init[first]
-	all pre: Time-last | let pos = pre.next |
-	some med: Medico, paciente: Paciente |
-	addPaciente[med, paciente, pre, pos] or
-	remPaciente[med, paciente, pre, pos]
-}
-
-pred init[t: Time] {
-	some m: Medico | let p = m.pacientes |
-	no p.t
-}
--------
-/*check todoServicoTemApenasUmMedico for 15
+run init for 10	 
+check todoServicoTemApenasUmMedico for 15
 check  todaFilialPertenceAClinica for 15
 check todoServicoFisioterapiaTemApenasUmAjudante for 15
 check todoPacienteEstaAlocadoParaUmMedico for 15
 check  todoServicoOdontologiaTemApenasUmAjudante for 15
-check todoServicoPsicologiaNaoPossuiAjudante for 15*/
-
-
-
-
-
-
-run init for 10  but exactly 5 Paciente
+check todoServicoPsicologiaNaoPossuiAjudante for 15 
