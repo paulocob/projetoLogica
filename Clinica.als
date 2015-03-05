@@ -29,7 +29,7 @@ one sig CampinaGrande, JoaoPessoa /*Patos, SantaRita */extends Filial {}
 sig Ajudante{}
 
 sig Paciente{
-//	status: one StatusPaciente
+	status:  StatusPaciente one -> Time
 }
 
 abstract sig StatusPaciente {}
@@ -47,7 +47,7 @@ fun ajudantesDeFisioterapia[ser : Servico]: set Ajudante{
 }
 
 fun getPacientes[med: Medico, t: Time]: set Paciente{
-	med.pacientes.t
+	med.(pacientes.t)
 }
 
 
@@ -95,16 +95,16 @@ pred TodoPacienteEstaParaUmMedico{
 	all pac: Paciente, t: Time | some pac.~(pacientes.t)
 
 }
-/*
+
 pred TodoPacienteTemStatus{
 	all pac : Paciente | some pac.status
 }
 
 pred TodoStatusEstaLigadoAUmPaciente{
-	all stat: StatusPaciente | some stat.~status
-	all stat: StatusPaciente , pac: Paciente | (stat in pac.status => (all pac2: Paciente  - pac | stat !in pac2.status))
+	all stat: StatusPaciente, t: Time | some stat.~(status.t)
+	all stat: StatusPaciente , pac: Paciente, t: Time | (stat in pac.status.t => (all pac2: Paciente  - pac | stat !in pac2.status.t))
 }
-*/
+
 ---- Fatos ------
 
 
@@ -116,11 +116,11 @@ fact EstruturaDaClinica {
 	TodoMedicoTrabalhaEmAlgumServico
 	TodoAjudanteEstaParaUmServico
 	TodoPacienteEstaParaUmMedico
-//	TodoStatusEstaLigadoAUmPaciente
+	TodoStatusEstaLigadoAUmPaciente
 
 }
 
-fact Quatidades{
+fact Quantidades{
 	#Clinica = 1
 	#Filial = 2
 	all med: Medico, t: Time | #(getPacientes[med, t]) <= 5
@@ -192,17 +192,27 @@ pred addPaciente[m: Medico, p: Paciente,t, t': Time] {
 	(m.pacientes).t' = (m.pacientes).t + p 
 }
 
+pred remPaciente[m: Medico, p: Paciente,t, t': Time] {
+	p in (m.pacientes).t
+	(m.pacientes).t' = (m.pacientes).t - p 
+}
+
+pred mudaStatus[p: Paciente, t, t': Time] {
+	// let s = o,status.t
+} 
 ---- operacoes que simulam o comportamento
 
 fact traces {
 	init[first]
 	all pre: Time-last | let pos = pre.next |
 	some med: Medico, paciente: Paciente |
-	addPaciente[med, paciente, pre, pos]
+	addPaciente[med, paciente, pre, pos] or
+	remPaciente[med, paciente, pre, pos]
 }
 
 pred init[t: Time] {
-	some Medico.pacientes.t
+	some m: Medico | let p = m.pacientes |
+	no p.t
 }
 -------
 /*check todoServicoTemApenasUmMedico for 15
@@ -216,5 +226,5 @@ check todoServicoPsicologiaNaoPossuiAjudante for 15*/
 
 
 
-pred show[]{}
-run show for 10
+
+run init for 10  but exactly 5 Paciente
