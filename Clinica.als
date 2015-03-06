@@ -26,21 +26,11 @@ sig Profissional{
     pacientesAtendidos: set  Paciente -> Time
 }
 
-one sig CampinaGrande/*, JoaoPessoa, Patos, SantaRita */extends Filial {}
+one sig CampinaGrande, JoaoPessoa, Patos, SantaRita extends Filial {}
 
 sig Ajudante{}
 
-sig Paciente{
-    //status:  StatusPaciente one -> Time
-}
-/*
-abstract sig StatusPaciente {}
-
-sig Consultado, EmConsulta, NaoConsultado extends StatusPaciente {}
-
-*/
-    
-
+sig Paciente{}
 
 ----------------------------------- FATOS --------------------------------
 
@@ -89,7 +79,7 @@ fact profissional {
 
 fact paciente {
     // Todo paciente esta ligado a um medico
-    all p: Paciente, t: Time | some prof: Profissional | p in ( getPacientes[prof, t])
+    all p: Paciente, t: Time | one prof: Profissional | p in ( getPacientes[prof, t])
     // Todo paciente nao pode estar em outro medico simultaneamente
     all pac: Paciente , prof: Profissional, t: Time | (pac in getPacientes[prof, t] => (all prof2: Profissional  - prof | pac !in getPacientes[prof2, t]))
 }
@@ -103,7 +93,7 @@ fact sistema {
 
 pred restricao {
         //Todo medico tem apenas um paciente em atendimento
-    all t: Time, prof: Profissional | #prof.pacienteEmAtendimento.t <=1
+    all t: Time, prof: Profissional | lone prof.pacienteEmAtendimento.t
     // o paciente que está em Não Atendido não pode estar Em Atendimento e Atendido
     all p: Paciente, t: Time,prof: Profissional | (p in prof.pacientesNaoAtendidos.t ) => 
     ((p not in prof.pacienteEmAtendimento.t) and (p not in prof.(pacientesAtendidos.t)))
@@ -117,6 +107,23 @@ pred restricao {
     ((p not in prof.pacientesNaoAtendidos.t) and (p not in prof.pacienteEmAtendimento.t))
 }
 
+
+pred pacientesNaEsperaNaoMudam[prof: set Profissional, t, t': Time]{
+	all prof1: prof | 
+	(prof1.pacientesNaoAtendidos).t' = 	(prof1.pacientesNaoAtendidos).t
+}
+
+pred pacientesEmAtendimentoNaoMudam[pro: set Profissional, t, t': Time]{
+all prof : pro |
+	(prof.pacienteEmAtendimento).t' = 	(prof.pacienteEmAtendimento).t
+}
+
+pred pacientesAtendidosNaoMudam[pro: set Profissional, t, t': Time]{
+all prof: pro |
+	(prof.pacientesAtendidos).t' = 	(prof.pacientesAtendidos).t 
+}
+
+-------------------------------------------------------------------------------------------------------------
 
 ----------------------------------- FUNCOES --------------------------------
 fun ajudantesDeFisioterapia[ser : Servico]: set Ajudante{
@@ -149,53 +156,46 @@ pred init[t: Time] {
 }
 
 pred addPaciente[prof: Profissional, p: Paciente,t, t': Time] {
-    //verifica se o paciente já não está no profissional
-    (p !in getPacientes[prof,t] ) and /* ta dando problema aqui, testar se não está em outro profissional --> */ (some prof2: Profissional  - prof | p !in getPacientes[prof2, t])
+	// se paciente não estiver alocado para nenhum profissional, ele é adicionado
+	all prof2: Profissional | (p !in getPacientes[prof2, t]) => ((prof.pacientesNaoAtendidos).t' = (prof.pacientesNaoAtendidos).t + p)
     
-
-    (prof.pacientesNaoAtendidos).t' = (prof.pacientesNaoAtendidos).t + p 
-    /*
-algo como
-(prof.pacientesNaoAtendidos).t' = (prof.pacientesNaoAtendidos).t + p ⇔
- (p !in getPacientes[prof,t] ) and (all prof2: Profissional  - prof | p !in getPacientes[prof2, t])
-
-
-*/
-    // verifica se as outras listas continuam as mesmas
-    prof.pacientesAtendidos.t' = prof.pacientesAtendidos.t
-    prof.pacienteEmAtendimento.t' = prof.pacienteEmAtendimento.t
-    
-    // verifica se a quantidade de pacientes é a mesma sem o paciente adicionado
-    #(getPacientes[prof,t'] - p) = #getPacientes[prof,t]         
-
-
-}
+	// verifica se as outras listas(de todos os profissionais) continuam as mesmas
+	pacientesNaEsperaNaoMudam[Profissional - prof, t, t']
+   pacientesEmAtendimentoNaoMudam[ Profissional, t, t']
+   pacientesAtendidosNaoMudam[Profissional, t, t']
+   
+}  
 
 pred terminarAtendimento[prof: Profissional, p: Paciente,t, t': Time]{
-    p in prof.pacienteEmAtendimento.t
-    prof.pacienteEmAtendimento.t' = prof.pacienteEmAtendimento.t - p    
-
-    prof.pacientesAtendidos.t' = prof.pacientesAtendidos.t + p    
-    prof.pacientesNaoAtendidos.t' = prof.pacientesNaoAtendidos.t 
+	//se paciente estiver EmAtendimento do profissinal, termina o atendimento
+    p in prof.pacienteEmAtendimento.t => 
+	prof.pacienteEmAtendimento.t' = prof.pacienteEmAtendimento.t - p    
+	
+	prof.pacientesAtendidos.t' = prof.pacientesAtendidos.t + p    
+	
+	//verifica se as outras listas(de todos os profissionais) continuam as mesmas
+   pacientesNaEsperaNaoMudam[Profissional, t, t']
+   pacientesEmAtendimentoNaoMudam[ Profissional - prof, t, t']
+   pacientesAtendidosNaoMudam[Profissional- prof, t, t']
     
-    // verifica se a quantidade de pacientes é a mesma 
-    #getPacientes[prof,t'] = #(getPacientes[prof,t])
-
 
 }
 
-pred atenderPaciente[prof: Profissional, p: Paciente,t, t': Time]{    
-    (p in prof.pacientesNaoAtendidos.t ) and (p !in prof.pacientesAtendidos.t) and
-    (no getPacienteEmAtendimento[prof,t])
-    
-    getPacienteEmAtendimento[prof, t'] = p
-    prof.pacientesAtendidos.t' = prof.pacientesAtendidos.t + getPacienteEmAtendimento[prof,t]
-    prof.pacientesNaoAtendidos.t' = prof.pacientesNaoAtendidos.t + p    
+pred atenderPaciente[prof: Profissional, p: Paciente,t, t': Time]{   
+	// se paciente estiver na lista NaoAtendidos de dado profissional (prof), e não estiver na lista de 
+	//Atendidos do mesmo profissional, entede-se o paciente (p) 
+	(p in prof.pacientesNaoAtendidos.t ) and (p !in (prof.pacientesAtendidos).t)
+   => prof.pacientesAtendidos.t' = prof.pacientesAtendidos.t + getPacienteEmAtendimento[prof,t]
 
-    // verifica se a quantidade de pacientes é a mesma 
-     #getPacientes[prof,t] = #(getPacientes[prof,t'])
+	prof.pacienteEmAtendimento.t' =  prof.pacienteEmAtendimento.t + p
+   	prof.pacientesNaoAtendidos.t' = prof.pacientesNaoAtendidos.t - p    
+
+	//verifica se as outras listas(de todos os profissionais) continuam as mesmas
+   	pacientesNaEsperaNaoMudam[Profissional - prof, t, t']
+   	pacientesEmAtendimentoNaoMudam[Profissional - prof, t, t']
+   	pacientesAtendidosNaoMudam[Profissional - prof, t, t']
+
 }
-
 
 ------------------------------------ ASSERTS ------------------------------------
 assert todoServicoTemApenasUmMedico{
@@ -223,15 +223,25 @@ assert  todoServicoPsicologiaNaoPossuiAjudante{
     all p: Psicologia | #p.ajudante = 0
 }
 
+assert  todoProfissionalSoAtendeUmPacientePorVez{
+    all t: Time , p: Profissional | #p.pacienteEmAtendimento <= 1
+}
+
+assert  todoProfissionalAtendeAte5Pacientes{
+    all p: Profissional | #(p.pacienteEmAtendimento + p.pacientesAtendidos + p.pacientesNaoAtendidos) <= 5
+}
 
 
 
-run init for 10     
+
+run init for 15    
 check todoServicoTemApenasUmMedico for 15
 check  todaFilialPertenceAClinica for 15
 check todoServicoFisioterapiaTemApenasUmAjudante for 15
 check todoPacienteEstaAlocadoParaUmMedico for 15
 check  todoServicoOdontologiaTemApenasUmAjudante for 15
 check todoServicoPsicologiaNaoPossuiAjudante for 15 
+check todoProfissionalSoAtendeUmPacientePorVez for 15
+check todoProfissionalAtendeAte5Pacientes for 15
 
 
