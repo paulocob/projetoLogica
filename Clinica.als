@@ -184,7 +184,7 @@ pred terminarAtendimento[prof: Profissional, p: Paciente,t, t': Time]{
 pred atenderPaciente[prof: Profissional, p: Paciente,t, t': Time]{   
 	// se paciente estiver na lista NaoAtendidos de dado profissional (prof), e não estiver na lista de 
 	//Atendidos do mesmo profissional, entede-se o paciente (p) 
-	(p in prof.pacientesNaoAtendidos.t ) and (p !in (prof.pacientesAtendidos).t)
+	(p in prof.pacientesNaoAtendidos.t ) and (p !in prof.pacientesAtendidos.t)
    => prof.pacientesAtendidos.t' = prof.pacientesAtendidos.t + getPacienteEmAtendimento[prof,t]
 
 	prof.pacienteEmAtendimento.t' =  prof.pacienteEmAtendimento.t + p
